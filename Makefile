@@ -16,12 +16,9 @@
 
 #user specific settings:
 #where to find the IDE
-ADIR:=.
+ADIR:=YOUR_PATH_HERE
 #which serial port to use (add a file with SUBSYSTEMS=="usb", ATTRS{product}=="Arduino Due Prog. Port", ATTRS{idProduct}=="003d", ATTRS{idVendor}=="2341", SYMLINK+="arduino_due" in /etc/udev/rules.d/ to get this working). for windows, name the port where your arduino is, e.g. COM9
 PORT:=COM5
-#if we want to verify the bossac upload, define this to -v
-VERIFY:=-v
-
 
 #then some general settings. They should not be necessary to modify.
 GGC_PATH:=$(ADIR)/tools/arm-none-eabi-gcc/
@@ -35,7 +32,7 @@ LIBSAM:=$(SAM)/system/libsam
 #TMPDIR:=$(PWD)/build
 TMPDIR:=.\build
 AR:=$(GGC_PATH)/bin/arm-none-eabi-ar
-BOSSAC:=.\tools\progdue.bat
+BOSSAC:=$(ADIR)\tools\progdue.bat
 
 
 #all these values are hard coded and should maybe be configured somehow else,
@@ -136,7 +133,7 @@ $(TMPDIR)/core:
 #creates the cpp file from the .ino file
 $(NEWMAINFILE): $(PROJNAME).ino
 	echo extern "C" void __cxa_pure_virtual() {while (true);} > $(TMPDIR)\temp.txt
-	copy /B /Y $(SAM)\cores\arduino\main.cpp + due_make.ino + $(TMPDIR)\temp.txt $(NEWMAINFILE)
+	copy /B /Y $(ADIR)\$(SAM)\cores\arduino\main.cpp + $(PROJNAME).ino + $(TMPDIR)\temp.txt $(NEWMAINFILE)
 
 #include the dependencies for our own files
 -include $(MYOBJFILES:.o=.d)
