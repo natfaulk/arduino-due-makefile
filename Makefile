@@ -20,6 +20,10 @@ ADIR:=YOUR_PATH_HERE
 #which serial port to use (add a file with SUBSYSTEMS=="usb", ATTRS{product}=="Arduino Due Prog. Port", ATTRS{idProduct}=="003d", ATTRS{idVendor}=="2341", SYMLINK+="arduino_due" in /etc/udev/rules.d/ to get this working). for windows, name the port where your arduino is, e.g. COM9
 PORT:=COM5
 
+#User src code
+USR_INC:=inc
+USR_SRC:=src
+
 #then some general settings. They should not be necessary to modify.
 GGC_PATH:=$(ADIR)/tools/arm-none-eabi-gcc/
 CXX:=$(GGC_PATH)/bin/arm-none-eabi-g++
@@ -41,6 +45,7 @@ DEFINES:=-Dprintf=iprintf -DF_CPU=84000000L -DARDUINO=152 -D__SAM3X8E__ -DUSB_PI
 
 # where are included header files. we use the local directory for '#include "..."', while '#include <...> goes to the specified directories. The Arduino IDE include LIBSAM, but not  LIBSAM/Include saving a lot of trouble - udp.h from Atmel seems to be broken (it is nearly empty) thus leading to compile errors. by not including LIBSAM/Include the compiler finds the correct udp.h. thsu, we omit LIBSAM/Include as well.
 INCLUDES:=-iquote.
+INCLUDES+=-I$(USR_INC)
 INCLUDES+=-I$(ADIR)/$(LIBSAM)
 INCLUDES+=-I$(ADIR)/$(CMSIS)/CMSIS/Include/
 INCLUDES+=-I$(ADIR)/$(CMSIS)/Device/ATMEL/
@@ -66,7 +71,7 @@ PROJNAME:=$(basename $(wildcard *.ino))
 NEWMAINFILE:=$(TMPDIR)\$(PROJNAME).ino.cpp
 
 #our own sourcefiles is the (converted) ino file and any local cpp files
-MYSRCFILES:=$(NEWMAINFILE) $(wildcard *.cpp)
+MYSRCFILES:=$(NEWMAINFILE) $(wildcard $(USR_SRC)/*.cpp)
 # MYSRCFILES:=$(NEWMAINFILE) $(shell ls *.cpp 2>/dev/null)
 MYOBJFILES:=$(addsuffix .o,$(addprefix $(TMPDIR)/,$(notdir $(MYSRCFILES))))
 
