@@ -1,17 +1,16 @@
-arduino-due-makefile
-=====================
+# A makefile for the Arduino Due
+A makefile for the Arduino Due to give more flexibility than the Arduino IDE. Based on the makefile by Paul Dreik at https://github.com/pauldreik/arduino-due-makefile but with removed dependencies on GNU utilities to make it more windows friendly.
 
-Arduino Due Makefile
+## Required
+- [GCC arm compiler](https://developer.arm.com/open-source/gnu-toolchain/gnu-rm)
+- [Arduino due](https://github.com/arduino/ArduinoCore-sam)
+- [Bossac](https://github.com/shumatech/BOSSA/releases)
+- [Make](https://www.gnu.org/software/make/)
 
-This is a repository for the sole purpose of providing a working
-Makefile for the Arduino Due.
+## To compile and upload
+To compile only `make compile`
+To compile and upload `make upload`
 
-There is currently not yet support for using libraries, but this
-should be relatively easy to fix.
-
-See the instructions in the top of the Makefile for how to use it.
-
-The makefile has been updated to work with arduino IDE 1.6.11 as of 20160924
-
-Feedback is welcome!
-
+## TODO:
+- test portability
+- make cross platform

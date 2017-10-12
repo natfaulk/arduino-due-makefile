@@ -1,98 +1,96 @@
 #!/usr/bin/make
-# makefile for the arduino due (works with arduino IDE 1.6.11)
+# makefile for the arduino due.
 #
 # USAGE: put this file in the same dir as your .ino file is.
 # configure the PORT variable and ADIR at the top of the file
 # to match your local configuration.
 # Type make upload to compile and upload.
-# Type make monitor to watch the serial port with gnu screen.
 #
-# TODO:
-#  * support libraries
-#  * handle possibly missing files in the currently hard coded ar step
-#    when assembling core.a together. 
-#  * see what to do about the $(SAM)/cores/arduino/wiring_pulse_asm.S" add -x assembler-with-cpp
-#    and this one: $(SAM)/cores/arduino/avr/dtostrf.c
 #
-# LICENSE: GPLv2 or later (at your option)
+# LICENSE: GPLv2
 #
-# This file can be found at https://github.com/pauldreik/arduino-due-makefile
 #
-# By Paul Dreik http://www.pauldreik.se/
-# 20130503 initial version
-# 20160924 updated to work with arduino 1.6.11
+# Based on makefile by Paul Dreik 20130503 http://www.pauldreik.se/
+# https://github.com/pauldreik/arduino-due-makefile
+
 
 #user specific settings:
 #where to find the IDE
-ADIR:=$(HOME)/.arduino15
-#which serial port to use (add a file with SUBSYSTEMS=="usb",
-#ATTRS{product}=="Arduino Due Prog. Port", ATTRS{idProduct}=="003d",
-#ATTRS{idVendor}=="2341", SYMLINK+="arduino_due" in /etc/udev/rules.d/
-#to get this working). Do not prefix the port with /dev/, just take
-#the basename.
-PORT:=ttyACM3
-#if you want to verify the bossac upload, define this to -v
-VERIFY:=
-
-
-#end of user configuration.
+ADIR:=.
+#which serial port to use (add a file with SUBSYSTEMS=="usb", ATTRS{product}=="Arduino Due Prog. Port", ATTRS{idProduct}=="003d", ATTRS{idVendor}=="2341", SYMLINK+="arduino_due" in /etc/udev/rules.d/ to get this working). for windows, name the port where your arduino is, e.g. COM9
+PORT:=COM5
+#if we want to verify the bossac upload, define this to -v
+VERIFY:=-v
 
 
 #then some general settings. They should not be necessary to modify.
-#CXX:=$(ADIR)/tools/g++_arm_none_eabi/bin/arm-none-eabi-g++
-CXX:=$(ADIR)/packages/arduino/tools/arm-none-eabi-gcc/4.8.3-2014q1/bin/arm-none-eabi-g++
-#CC:=$(ADIR)/tools/g++_arm_none_eabi/bin/arm-none-eabi-gcc
-CC:=$(ADIR)/packages/arduino/tools/arm-none-eabi-gcc/4.8.3-2014q1/bin/arm-none-eabi-gcc
-OBJCOPY:=$(ADIR)/packages/arduino/tools/arm-none-eabi-gcc/4.8.3-2014q1/bin/arm-none-eabi-objcopy
-
+GGC_PATH:=$(ADIR)/tools/arm-none-eabi-gcc/
+CXX:=$(GGC_PATH)/bin/arm-none-eabi-g++
+CC:=$(GGC_PATH)/bin/arm-none-eabi-gcc
 C:=$(CC)
-#SAM:=arduino/sam/
-SAM:=$(ADIR)/packages/arduino/hardware/sam/1.6.9
-#CMSIS:=arduino/sam/system/CMSIS/
-#LIBSAM:=arduino/sam/system/libsam
-TMPDIR:=$(PWD)/build
-AR:=$(ADIR)/tools/g++_arm_none_eabi/bin/arm-none-eabi-ar 
-AR:=$(ADIR)/packages/arduino/tools/arm-none-eabi-gcc/4.8.3-2014q1/bin/arm-none-eabi-ar
+SAM:=hardware
+CMSIS:=$(SAM)/system/CMSIS
+LIBSAM:=$(SAM)/system/libsam
+# for windows, we compile in an subdirectory of the current dir. oooh, always run from the same place...:
+#TMPDIR:=$(PWD)/build
+TMPDIR:=.\build
+AR:=$(GGC_PATH)/bin/arm-none-eabi-ar
+BOSSAC:=.\tools\progdue.bat
 
 
 #all these values are hard coded and should maybe be configured somehow else,
 #like olikraus does in his makefile.
-DEFINES:=-Dprintf=iprintf -DF_CPU=84000000  -DARDUINO=10611 -D__SAM3X8E__ -DUSB_PID=0x003e -DUSB_VID=0x2341 -DUSBCON \
-         -DARDUINO_SAM_DUE -DARDUINO_ARCH_SAM '-DUSB_MANUFACTURER="Arduino LLC"' '-DUSB_PRODUCT="Arduino Due"'
+DEFINES:=-Dprintf=iprintf -DF_CPU=84000000L -DARDUINO=152 -D__SAM3X8E__ -DUSB_PID=0x003e -DUSB_VID=0x2341 -DUSBCON
 
-INCLUDES:=-I$(SAM)/system/libsam -I$(SAM)/system/CMSIS/CMSIS/Include/ \
-          -I$(SAM)/system/CMSIS/Device/ATMEL/ -I$(SAM)/cores/arduino \
-          -I$(SAM)/variants/arduino_due_x
+# where are included header files. we use the local directory for '#include "..."', while '#include <...> goes to the specified directories. The Arduino IDE include LIBSAM, but not  LIBSAM/Include saving a lot of trouble - udp.h from Atmel seems to be broken (it is nearly empty) thus leading to compile errors. by not including LIBSAM/Include the compiler finds the correct udp.h. thsu, we omit LIBSAM/Include as well.
+INCLUDES:=-iquote.
+INCLUDES+=-I$(ADIR)/$(LIBSAM)
+INCLUDES+=-I$(ADIR)/$(CMSIS)/CMSIS/Include/
+INCLUDES+=-I$(ADIR)/$(CMSIS)/Device/ATMEL/
+INCLUDES+=-I$(ADIR)/$(SAM)/cores/arduino
+INCLUDES+=-I$(ADIR)/$(SAM)/variants/arduino_due_x
+INCLUDES+=-I$(ADIR)/$(SAM)/libraries/SPI/src
+INCLUDES+=-I$(ADIR)/$(SAM)/libraries/HID/src
+INCLUDES+=-I$(ADIR)/$(SAM)/libraries/Wire/src
+# INCLUDES+=-I$(ADIR)/$(SAM)/libraries/Ethernet
+# INCLUDES+=-I$(ADIR)/$(SAM)/libraries/Ethernet/utility
 
-#also include the current dir for convenience
-INCLUDES += -I.
+#compilation flags common to both c and c++
+# replace -w with -v if you want to get a talkative compiler
+COMMON_FLAGS:=-g -Os -w -ffunction-sections -fdata-sections -nostdlib --param max-inline-insns-single=500 -mcpu=cortex-m3 -mthumb
 
-#compilation flags common to both c and c++ 
-COMMON_FLAGS:=-g -Os -w -ffunction-sections -fdata-sections -nostdlib \
-              --param max-inline-insns-single=500 -mcpu=cortex-m3 -mthumb \
-               -fno-threadsafe-statics
-#for compiling c (do not warn, this is not our code)
-CFLAGS:=$(COMMON_FLAGS) -std=gnu11
-#for compiling c++
-CXXFLAGS:=$(COMMON_FLAGS) -fno-rtti -fno-exceptions -std=gnu++11 -Wall -Wextra
+CFLAGS:=$(COMMON_FLAGS)
+CXXFLAGS:=$(COMMON_FLAGS) -fno-rtti -fno-exceptions
 
 #let the results be named after the project
-PROJNAME:=$(shell basename *.ino .ino)
+PROJNAME:=$(basename $(wildcard *.ino))
 
 #we will make a new mainfile from the ino file.
-NEWMAINFILE:=$(TMPDIR)/$(PROJNAME).ino.cpp
+NEWMAINFILE:=$(TMPDIR)\$(PROJNAME).ino.cpp
 
 #our own sourcefiles is the (converted) ino file and any local cpp files
-MYSRCFILES:=$(NEWMAINFILE) $(shell ls *.cpp 2>/dev/null)
+MYSRCFILES:=$(NEWMAINFILE) $(wildcard *.cpp)
+# MYSRCFILES:=$(NEWMAINFILE) $(shell ls *.cpp 2>/dev/null)
 MYOBJFILES:=$(addsuffix .o,$(addprefix $(TMPDIR)/,$(notdir $(MYSRCFILES))))
 
 #These source files are the ones forming core.a
-CORESRCXX:=$(shell ls ${SAM}/cores/arduino/*.cpp ${SAM}/cores/arduino/USB/*.cpp  ${SAM}/variants/arduino_due_x/variant.cpp)
-CORESRC:=$(shell ls ${SAM}/cores/arduino/*.c)
+CORESRCXX:=$(wildcard $(ADIR)/$(SAM)/cores/arduino/*.cpp)
+CORESRCXX+=$(wildcard $(ADIR)/$(SAM)/cores/arduino/USB/*.cpp)
+CORESRCXX+=$(wildcard $(ADIR)/$(SAM)/libraries/SPI/src/*.cpp)
+CORESRCXX+=$(wildcard $(ADIR)/$(SAM)/libraries/HID/src/*.cpp)
+CORESRCXX+=$(wildcard $(ADIR)/$(SAM)/libraries/Wire/src/*.cpp)
+# CORESRCXX+=$(wildcard $(ADIR)/$(SAM)/libraries/Ethernet/*.cpp)
+# CORESRCXX+=$(wildcard $(ADIR)/$(SAM)/libraries/Ethernet/Utility/*.cpp)
+CORESRCXX+=$(wildcard $(ADIR)/$(SAM)/variants/arduino_due_x/variant.cpp)
+CORESRC:=$(wildcard $(ADIR)/$(SAM)/cores/arduino/*.c)
 
-#hey this one is needed too: $(SAM)/cores/arduino/wiring_pulse_asm.S" add -x assembler-with-cpp
-#and this one: /1.6.9/cores/arduino/avr/dtostrf.c but it seems to work
-#anyway, probably because I do not use that functionality.
+# CORESRCXX:=$(shell ls ${ADIR}/${SAM}/cores/arduino/*.cpp)
+# CORESRCXX+=$(shell ls ${ADIR}/${SAM}/cores/arduino/USB/*.cpp)
+# CORESRCXX+=$(shell ls ${ADIR}/${SAM}/libraries/SPI/*.cpp)
+# CORESRCXX+=$(shell ls ${ADIR}/${SAM}/libraries/Ethernet/*.cpp)
+# CORESRCXX+=$(shell ls ${ADIR}/${SAM}/libraries/Ethernet/Utility/*.cpp)
+# CORESRCXX+=$(shell ls ${ADIR}/${SAM}/variants/arduino_due_x/variant.cpp)
+# CORESRC:=$(shell ls ${ADIR}/${SAM}/cores/arduino/*.c)
 
 #convert the core source files to object files. assume no clashes.
 COREOBJSXX:=$(addprefix $(TMPDIR)/core/,$(notdir $(CORESRCXX)) )
@@ -105,7 +103,7 @@ default:
 
 #This rule is good to just make sure stuff compiles, without having to wait
 #for bossac.
-compile: $(TMPDIR)/$(PROJNAME).elf
+compile: $(TMPDIR)/$(PROJNAME).bin
 
 #This is a make rule template to create object files from the source files.
 # arg 1=src file
@@ -125,21 +123,20 @@ $(foreach src,$(MYSRCFILES), $(eval $(call OBJ_template,$(src),$(addsuffix .o,$(
 
 
 clean:
-	test ! -d $(TMPDIR) || rm -rf $(TMPDIR)
+	del /Q $(TMPDIR)\core $(TMPDIR)\*.*
 
 .PHONY: upload default
 
 $(TMPDIR):
-	mkdir -p $(TMPDIR)
+	mkdir $(TMPDIR)
 
 $(TMPDIR)/core:
-	mkdir -p $(TMPDIR)/core
+	mkdir $(TMPDIR)\core
 
 #creates the cpp file from the .ino file
 $(NEWMAINFILE): $(PROJNAME).ino
-	cat $(SAM)/cores/arduino/main.cpp > $(NEWMAINFILE)
-	cat $(PROJNAME).ino >> $(NEWMAINFILE)
-	echo 'extern "C" void __cxa_pure_virtual() {while (true);}' >> $(NEWMAINFILE)
+	echo extern "C" void __cxa_pure_virtual() {while (true);} > $(TMPDIR)\temp.txt
+	copy /B /Y $(SAM)\cores\arduino\main.cpp + due_make.ino + $(TMPDIR)\temp.txt $(NEWMAINFILE)
 
 #include the dependencies for our own files
 -include $(MYOBJFILES:.o=.d)
@@ -148,48 +145,42 @@ $(NEWMAINFILE): $(PROJNAME).ino
 #arduino IDE does it, seems *really* picky about this.
 #Sorry for the hard coding.
 $(TMPDIR)/core.a: $(TMPDIR)/core $(COREOBJS) $(COREOBJSXX)
-	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/wiring_shift.c.o 
-	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/wiring_analog.c.o 
-	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/itoa.c.o 
-	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/cortex_handlers.c.o 
-	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/hooks.c.o 
-	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/wiring.c.o 
-	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/WInterrupts.c.o 
-	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/syscalls_sam3.c.o 
-	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/iar_calls_sam3.c.o 
-	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/wiring_digital.c.o 
-	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/Print.cpp.o 
-	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/USARTClass.cpp.o 
+	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/wiring_shift.c.o
+	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/wiring_analog.c.o
+	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/itoa.c.o
+	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/cortex_handlers.c.o
+	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/hooks.c.o
+	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/wiring.c.o
+	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/WInterrupts.c.o
+	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/syscalls_sam3.c.o
+	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/iar_calls_sam3.c.o
+	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/wiring_digital.c.o
+	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/Print.cpp.o
+	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/USARTClass.cpp.o
 	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/WString.cpp.o
-	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/PluggableUSB.cpp.o 
-	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/USBCore.cpp.o 
-	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/CDC.cpp.o 
-	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/wiring_pulse.cpp.o 
-	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/UARTClass.cpp.o 
+	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/USBCore.cpp.o
+	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/CDC.cpp.o
+	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/HID.cpp.o
+	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/wiring_pulse.cpp.o
+	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/UARTClass.cpp.o
 	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/main.cpp.o
-	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/new.cpp.o
-	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/watchdog.cpp.o
-	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/Stream.cpp.o 
-	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/RingBuffer.cpp.o 
-	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/IPAddress.cpp.o 
-	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/Reset.cpp.o 
-	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/WMath.cpp.o 
+	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/abi.cpp.o
+	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/Stream.cpp.o
+	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/RingBuffer.cpp.o
+	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/IPAddress.cpp.o
+	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/Reset.cpp.o
+	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/WMath.cpp.o
 	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/variant.cpp.o
+	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/SPI.cpp.o
 
 #link our own object files with core to form the elf file
-$(TMPDIR)/$(PROJNAME).elf: $(TMPDIR)/core.a $(TMPDIR)/core/syscalls_sam3.c.o $(MYOBJFILES) 
-	$(CC) -mcpu=cortex-m3 -mthumb -Os -Wl,--gc-sections -T$(SAM)/variants/arduino_due_x/linker_scripts/gcc/flash.ld -Wl,-Map,$(NEWMAINFILE).map -o $@ -L$(TMPDIR) -Wl,--cref -Wl,--check-sections -Wl,--gc-sections -Wl,--entry=Reset_Handler -Wl,--unresolved-symbols=report-all -Wl,--warn-common -Wl,--warn-section-align -Wl,--start-group -u _sbrk -u link -u _close -u _fstat -u _isatty -u _lseek -u _read -u _write -u _exit -u kill -u _getpid $(MYOBJFILES) $(TMPDIR)/core/variant.cpp.o $(SAM)/variants/arduino_due_x/libsam_sam3x8e_gcc_rel.a $(TMPDIR)/core.a -Wl,--end-group -lm -gcc
+$(TMPDIR)/$(PROJNAME).elf: $(TMPDIR)/core.a $(TMPDIR)/core/syscalls_sam3.c.o $(MYOBJFILES)
+	$(CXX) -Os -Wl,--gc-sections -mcpu=cortex-m3 -T$(ADIR)/$(SAM)/variants/arduino_due_x/linker_scripts/gcc/flash.ld -Wl,-Map,$(NEWMAINFILE).map -o $@ -L$(TMPDIR) -lm -lgcc -mthumb -Wl,--cref -Wl,--check-sections -Wl,--gc-sections -Wl,--entry=Reset_Handler -Wl,--unresolved-symbols=report-all -Wl,--warn-common -Wl,--warn-section-align -Wl,--warn-unresolved-symbols -Wl,--start-group $(TMPDIR)/core/syscalls_sam3.c.o $(MYOBJFILES) $(ADIR)/$(SAM)/variants/arduino_due_x/libsam_sam3x8e_gcc_rel.a $(TMPDIR)/core.a -Wl,--end-group
 
 #copy from the hex to our bin file (why?)
-$(TMPDIR)/$(PROJNAME).bin: $(TMPDIR)/$(PROJNAME).elf 
-	$(OBJCOPY) -O binary $< $@
+$(TMPDIR)/$(PROJNAME).bin: $(TMPDIR)/$(PROJNAME).elf
+	$(GGC_PATH)/bin/arm-none-eabi-objcopy -O binary $< $@
 
 #upload to the arduino by first resetting it (stty) and the running bossac
 upload: $(TMPDIR)/$(PROJNAME).bin
-	stty -F /dev/$(PORT) cs8 1200 hupcl
-	$(ADIR)/packages/arduino/tools/bossac/1.6.1-arduino/bossac -i -d --port=$(PORT) -U false -e -w $(VERIFY) -b $(TMPDIR)/$(PROJNAME).bin -R
-
-#to view the serial port with screen.
-monitor:
-	screen /dev/$(PORT) 115200
-
+	$(BOSSAC) -p $(PORT) -U false -e -w -b $(TMPDIR)\$(PROJNAME).bin -R
