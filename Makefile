@@ -165,6 +165,7 @@ $(TMPDIR)/core.a: $(TMPDIR)/core $(COREOBJS) $(COREOBJSXX)
 	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/Print.cpp.o
 	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/USARTClass.cpp.o
 	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/WString.cpp.o
+	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/PluggableUSB.cpp.o
 	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/USBCore.cpp.o
 	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/CDC.cpp.o
 	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/HID.cpp.o
@@ -179,6 +180,7 @@ $(TMPDIR)/core.a: $(TMPDIR)/core $(COREOBJS) $(COREOBJSXX)
 	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/WMath.cpp.o
 	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/variant.cpp.o
 	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/SPI.cpp.o
+	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/watchdog.cpp.o
 
 #link our own object files with core to form the elf file
 $(TMPDIR)/$(PROJNAME).elf: $(TMPDIR)/core.a $(TMPDIR)/core/syscalls_sam3.c.o $(MYOBJFILES)
