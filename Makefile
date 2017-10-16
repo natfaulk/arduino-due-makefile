@@ -180,6 +180,8 @@ $(TMPDIR)/core.a: $(TMPDIR)/core $(COREOBJS) $(COREOBJSXX)
 	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/WMath.cpp.o
 	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/variant.cpp.o
 	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/SPI.cpp.o
+	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/HID.cpp.o
+	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/Wire.cpp.o
 	$(AR) rcs $(TMPDIR)/core.a $(TMPDIR)/core/watchdog.cpp.o
 
 #link our own object files with core to form the elf file
