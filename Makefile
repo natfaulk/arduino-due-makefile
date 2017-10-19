@@ -13,6 +13,7 @@
 # Based on makefile by Paul Dreik 20130503 http://www.pauldreik.se/
 # https://github.com/pauldreik/arduino-due-makefile
 
+SHELL = cmd.exe
 
 #user specific settings:
 #where to find the IDE
